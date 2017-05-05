@@ -170,6 +170,34 @@ def train(filename, merge_pic_path):
                     result.write(line + "\n")
     result.close()
 
+def rotate_img(thresh):
+    angle = 0
+    smallest = 999
+    row, col = thresh.shape
+
+    for ang in range(-60, 61):
+        M = cv2.getRotationMatrix2D((col / 2, row / 2), ang, 1)
+        t = cv2.warpAffine(thresh.copy(), M, (col, row))
+
+        r, c = t.shape
+        right = 0
+        left = 999
+
+        for i in xrange(r):
+            for j in xrange(c):
+                if t[i][j] == 255 and left > j:
+                    left = j
+                if t[i][j] == 255 and right < j:
+                    right = j
+
+        if abs(right - left) <= smallest:
+            smallest = abs(right - left)
+            angle = ang
+
+    M = cv2.getRotationMatrix2D((col / 2, row / 2), angle, 1)
+    img = cv2.warpAffine(thresh, M, (col, row))
+    return img
+
 def identification_codes(base_path, train_path, model_path=""):
     import os
 
@@ -196,6 +224,7 @@ def identification_codes(base_path, train_path, model_path=""):
         # 除噪點
         im = greyImg(out, 5) #少於5點刪除
         im.save(tmp_path+"code.bmp")
+        # im.show()
 
         im = cv2.imread(tmp_path+"code.bmp", flags=cv2.CV_LOAD_IMAGE_GRAYSCALE)
         #  運用openCV找邊界做裁切
@@ -222,6 +251,11 @@ def identification_codes(base_path, train_path, model_path=""):
         for index, (x, y, w, h) in enumerate(arr):
             roi = im[y: y + h, x: x + w]
             thresh = roi.copy()
+			
+            # 選轉切格圖片 - 有遇到選轉字型時需打開
+            # thresh = rotate_img(thresh)
+
+            # 所有圖片歸一化
             res = cv2.resize(thresh, (30, 30), interpolation=cv2.INTER_CUBIC)
             cv2.imwrite(split_path+'0/{}-{}.jpg'.format(idx, index+1), res)
 
